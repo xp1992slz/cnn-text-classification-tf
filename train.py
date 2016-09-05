@@ -24,6 +24,8 @@ tf.flags.DEFINE_integer("batch_size", 50, "Batch Size (default: 50)")
 tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
+tf.flags.DEFINE_float("cross_validation", 0.1, "Percentage of data for test (default: 0.1)")
+
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
@@ -58,9 +60,10 @@ x_shuffled = x[shuffle_indices]
 y_shuffled = y[shuffle_indices]
 
 # Split train/test set
-# TODO: This is very crude, should use cross-validation
-x_train, x_dev = x_shuffled[:-1000], x_shuffled[-1000:]
-y_train, y_dev = y_shuffled[:-1000], y_shuffled[-1000:]
+# Use 10% of the training dataset as test
+n_test = int(len(x_shuffled) * FLAGS.cross_validation)
+x_train, x_dev = x_shuffled[:-n_test], x_shuffled[-n_test:]
+y_train, y_dev = y_shuffled[:-n_test], y_shuffled[-n_test:]
 print("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
 print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
 print("Number of Classes: %s" % len(y_train[0]))
