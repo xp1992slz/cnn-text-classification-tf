@@ -50,7 +50,21 @@ def load_data_and_labels(dataset_name):
         return [x_text, y]
     elif dataset_name == EC:
         # Load from EC
-        return []
+        data = list(open("./data/emotion_cause/No Cause refine.txt", "r").readlines())
+        data = [s.split('\t') for s in data]
+        x_text = []
+        y = []
+        for s in data:
+            x_text.append(clean_str(s[1].strip()))
+            y.append(int(s[0]))
+
+        number_of_classes = max(y)+1
+        y_one_hot = []
+        for i in y:
+            l = [0] * number_of_classes
+            l[i] = 1
+            y_one_hot.append(l)
+        return [x_text, np.reshape(y_one_hot, (len(y_one_hot), number_of_classes))]
     raise ValueError('Wrong Data Set Name')
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
