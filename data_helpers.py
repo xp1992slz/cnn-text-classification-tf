@@ -3,7 +3,6 @@ import re
 import itertools
 from collections import Counter
 
-
 def clean_str(string):
     """
     Tokenization/string cleaning for all datasets except for SST.
@@ -24,26 +23,35 @@ def clean_str(string):
     string = re.sub(r"\s{2,}", " ", string)
     return string.strip().lower()
 
+# Dataset Names
+MR = "MR"
+EC = "EC"
 
-def load_data_and_labels():
+def load_data_and_labels(dataset_name):
     """
-    Loads MR polarity data from files, splits the data into words and generates labels.
-    Returns split sentences and labels.
-    """
-    # Load data from files
-    positive_examples = list(open("./data/rt-polaritydata/rt-polarity.pos", "r").readlines())
-    positive_examples = [s.strip() for s in positive_examples]
-    negative_examples = list(open("./data/rt-polaritydata/rt-polarity.neg", "r").readlines())
-    negative_examples = [s.strip() for s in negative_examples]
-    # Split by words
-    x_text = positive_examples + negative_examples
-    x_text = [clean_str(sent) for sent in x_text]
-    # Generate labels
-    positive_labels = [[0, 1] for _ in positive_examples]
-    negative_labels = [[1, 0] for _ in negative_examples]
-    y = np.concatenate([positive_labels, negative_labels], 0)
-    return [x_text, y]
+    Dataset name
+    1. MR - Rotten Tomatoes Movie Review Data (Positive/Negative)
+    2. EC - Emotional Cause Data (Happiness/Sadness/Anger/Fear/Surprise/Disgust/Shame)
 
+    """
+    if dataset_name == MR:
+        # Load data from files
+        positive_examples = list(open("./data/rt-polaritydata/rt-polarity.pos", "r").readlines())
+        positive_examples = [s.strip() for s in positive_examples]
+        negative_examples = list(open("./data/rt-polaritydata/rt-polarity.neg", "r").readlines())
+        negative_examples = [s.strip() for s in negative_examples]
+        # Split by words
+        x_text = positive_examples + negative_examples
+        x_text = [clean_str(sent) for sent in x_text]
+        # Generate labels
+        positive_labels = [[0, 1] for _ in positive_examples]
+        negative_labels = [[1, 0] for _ in negative_examples]
+        y = np.concatenate([positive_labels, negative_labels], 0)
+        return [x_text, y]
+    elif dataset_name == EC:
+        # Load from EC
+        return []
+    raise ValueError('Wrong Data Set Name')
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
     """
