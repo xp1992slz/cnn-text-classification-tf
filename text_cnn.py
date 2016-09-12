@@ -9,7 +9,7 @@ class TextCNN(object):
     """
     def __init__(
       self, sequence_length, num_classes, vocab_size,
-      embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0):
+      embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0, embedding_static=False):
 
         # Placeholders for input, output and dropout
         self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
@@ -20,11 +20,14 @@ class TextCNN(object):
         l2_loss = tf.constant(0.0)
 
         # Embedding layer
+        # TODO: Multi-channel implementation
+
         with tf.device('/cpu:0'), tf.name_scope("embedding"):
-            W = tf.Variable(
+            self.W = tf.Variable(
                 tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
+                trainable=not embedding_static,
                 name="W")
-            self.embedded_chars = tf.nn.embedding_lookup(W, self.input_x)
+            self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x)
             # Add channel dimension to make it [None, sequence_length, embedding_size, 1]
             self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
 

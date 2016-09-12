@@ -20,6 +20,7 @@ tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (defau
 tf.flags.DEFINE_float("l2_reg_lambda", 3.0, "L2 regularizaion lambda (default: 3.0)")
 tf.flags.DEFINE_string("word2vec_path", None, "Path to word2vec file, no path then don't use")
 tf.flags.DEFINE_boolean("word2vec_multi", False, "Whether to use Word2Vec multi channel")
+tf.flags.DEFINE_boolean("embedding_static", False, "Whether word embedding is static or not")
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 50, "Batch Size (default: 50)")
@@ -88,7 +89,8 @@ with tf.Graph().as_default():
             embedding_size=FLAGS.embedding_dim,
             filter_sizes=list(map(int, FLAGS.filter_sizes.split(","))),
             num_filters=FLAGS.num_filters,
-            l2_reg_lambda=FLAGS.l2_reg_lambda)
+            l2_reg_lambda=FLAGS.l2_reg_lambda,
+            embedding_static=FLAGS.embedding_static)
 
         # Define Training procedure
         global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -137,6 +139,37 @@ with tf.Graph().as_default():
 
         # Initialize all variables
         sess.run(tf.initialize_all_variables())
+
+        # Word2Vec initiazliation
+        # referenced https://github.com/dennybritz/cnn-text-classification-tf/issues/17
+        if FLAGS.word2vec_path:
+            # initial matrix with random uniform
+            initW = np.random.uniform(-0.25,0.25,(len(vocab_processor.vocabulary_), FLAGS.embedding_dim))
+            # load any vectors from the word2vec
+            print("Load word2vec file {}\n".format(FLAGS.word2vec_path))
+            with open(os.path.abspath(FLAGS.word2vec_path), "rb") as f:
+                header = f.readline()
+                vocab_size, layer1_size = map(int, header.split())
+                binary_len = np.dtype('float32').itemsize * layer1_size
+                for line in xrange(vocab_size):
+                    word = []
+                    while True:
+                        ch = f.read(1)
+                        if ch == ' ':
+                            word = ''.join(word)
+                            break
+                        if ch != '\n':
+                            word.append(ch)
+                    idx = vocab_processor.vocabulary_.get(word)
+                    if idx != 0:
+                        initW[idx] = np.fromstring(f.read(binary_len), dtype='float32')
+                    else:
+                        f.read(binary_len)
+
+            if not FLAGS.word2vec_multi:
+                print("Overriding embedding with word2vec")
+                sess.run(cnn.W.assign(initW))
+
 
         def train_step(x_batch, y_batch):
             """
