@@ -9,7 +9,7 @@ class TextCNN(object):
     """
     def __init__(
       self, sequence_length, num_classes, vocab_size,
-      embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0, embedding_static=False):
+      embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0, embedding_static=False, word2vec_multi=False):
 
         # Placeholders for input, output and dropout
         self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
@@ -20,7 +20,6 @@ class TextCNN(object):
         l2_loss = tf.constant(0.0)
 
         # Embedding layer
-        # TODO: Multi-channel implementation
 
         with tf.device('/cpu:0'), tf.name_scope("embedding"):
             self.W = tf.Variable(
@@ -31,34 +30,49 @@ class TextCNN(object):
             # Add channel dimension to make it [None, sequence_length, embedding_size, 1]
             self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
 
+            if word2vec_multi:
+                self.W2 = tf.Variable(
+                    tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
+                    name="W2")
+                self.embedded_chars_2 = tf.nn.embedding_lookup(self.W2, self.input_x)
+                # Add channel dimension to make it [None, sequence_length, embedding_size, 1]
+                self.embedded_chars_expanded_2 = tf.expand_dims(self.embedded_chars, -1)
+
+
         # Create a convolution + maxpool layer for each filter size
+        channels = [self.embedded_chars_expanded]
+        if word2vec_multi:
+            channels.append(self.embedded_chars_expanded_2)
+
         pooled_outputs = []
-        for i, filter_size in enumerate(filter_sizes):
-            with tf.name_scope("conv-maxpool-%s" % filter_size):
-                # Convolution Layer
-                # filter_shape = [filter height, filter width, in_channels, out_channels]
-                filter_shape = [filter_size, embedding_size, 1, num_filters]
-                W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
-                b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
-                conv = tf.nn.conv2d(
-                    self.embedded_chars_expanded,
-                    W,
-                    strides=[1, 1, 1, 1],
-                    padding="VALID",
-                    name="conv")
-                # Apply nonlinearity
-                h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
-                # Maxpooling over the outputs
-                pooled = tf.nn.max_pool(
-                    h,
-                    ksize=[1, sequence_length - filter_size + 1, 1, 1],
-                    strides=[1, 1, 1, 1],
-                    padding='VALID',
-                    name="pool")
-                pooled_outputs.append(pooled)
+
+        for n, channel in enumerate(channels):
+            for i, filter_size in enumerate(filter_sizes):
+                with tf.name_scope("channel%s-conv-maxpool-%s" % (n, filter_size)):
+                    # Convolution Layer
+                    # filter_shape = [filter height, filter width, in_channels, out_channels]
+                    filter_shape = [filter_size, embedding_size, 1, num_filters]
+                    W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
+                    b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
+                    conv = tf.nn.conv2d(
+                        channel,
+                        W,
+                        strides=[1, 1, 1, 1],
+                        padding="VALID",
+                        name="conv")
+                    # Apply nonlinearity
+                    h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
+                    # Maxpooling over the outputs
+                    pooled = tf.nn.max_pool(
+                        h,
+                        ksize=[1, sequence_length - filter_size + 1, 1, 1],
+                        strides=[1, 1, 1, 1],
+                        padding='VALID',
+                        name="pool")
+                    pooled_outputs.append(pooled)
 
         # Combine all the pooled features
-        num_filters_total = num_filters * len(filter_sizes)
+        num_filters_total = num_filters * len(filter_sizes) * len(channels)
         self.h_pool = tf.concat(3, pooled_outputs)
         self.h_pool_flat = tf.reshape(self.h_pool, [-1, num_filters_total])
 

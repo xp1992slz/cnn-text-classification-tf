@@ -90,7 +90,8 @@ with tf.Graph().as_default():
             filter_sizes=list(map(int, FLAGS.filter_sizes.split(","))),
             num_filters=FLAGS.num_filters,
             l2_reg_lambda=FLAGS.l2_reg_lambda,
-            embedding_static=FLAGS.embedding_static)
+            embedding_static=FLAGS.embedding_static,
+            word2vec_multi=FLAGS.word2vec_multi)
 
         # Define Training procedure
         global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -169,6 +170,9 @@ with tf.Graph().as_default():
             if not FLAGS.word2vec_multi:
                 print("Overriding embedding with word2vec")
                 sess.run(cnn.W.assign(initW))
+            else:
+                print("Using 2 channel embedding with word2vec")
+                sess.run(cnn.W2.assign(initW))
 
 
         def train_step(x_batch, y_batch):
