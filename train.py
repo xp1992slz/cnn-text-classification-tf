@@ -28,7 +28,7 @@ tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 
 tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_float("cross_validation", 0.1, "Percentage of data for test (default: 0.1)")
-tf.flags.DEFINE_integer("max_steps", 2000, "Stop training after max_steps (default: 2000)")
+# tf.flags.DEFINE_integer("max_steps", 2000, "Stop training after max_steps (default: 2000)")
 
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
@@ -223,5 +223,5 @@ with tf.Graph().as_default():
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                 print("Saved model checkpoint to {}\n".format(path))
-            if current_step > FLAGS.max_steps:
-                break
+            # if current_step > FLAGS.max_steps:
+            #    break
