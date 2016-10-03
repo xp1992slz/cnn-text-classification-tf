@@ -73,13 +73,19 @@ def load_data_and_labels(dataset_name):
         negative_examples = [clean_str(s.strip()) for s in negative_examples]
         # Split by words
         x_text = positive_examples + negative_examples
+        x_text = np.array(x_text)
 
         # Generate labels
         positive_labels = [[0, 1] for _ in positive_examples]
         negative_labels = [[1, 0] for _ in negative_examples]
         y = np.concatenate([positive_labels, negative_labels], 0)
+        y = np.array(y)
 
-        return [x_text, y]
+        shuffle_indices = np.random.permutation(np.arange(len(x_text)))
+        shuffled_data = x_text[shuffle_indices]
+        shuffled_labels = y[shuffle_indices]
+
+        return [shuffled_data[:len(x_text)/10], shuffled_labels[:len(x_text)/10]]
 
     raise ValueError('Wrong Data Set Name')
 
