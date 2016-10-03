@@ -85,7 +85,7 @@ def load_data_and_labels(dataset_name):
         shuffled_data = x_text[shuffle_indices]
         shuffled_labels = y[shuffle_indices]
 
-        return [shuffled_data[:len(x_text)/10], shuffled_labels[:len(x_text)/10]]
+        return [shuffled_data[:len(x_text)/100], shuffled_labels[:len(x_text)/100]]
 
     raise ValueError('Wrong Data Set Name')
 
