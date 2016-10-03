@@ -26,13 +26,14 @@ def clean_str(string):
 # Dataset Names
 MR = "MR"
 EC = "EC"
+TW = "TW"
 
 def load_data_and_labels(dataset_name):
     """
     Dataset name
     1. MR - Rotten Tomatoes Movie Review Data (Positive/Negative)
     2. EC - Emotional Cause Data (Happiness/Sadness/Anger/Fear/Surprise/Disgust/Shame)
-
+    3. TW - Twitter data
     """
     if dataset_name == MR:
         # Load data from files
@@ -65,6 +66,21 @@ def load_data_and_labels(dataset_name):
             l[i] = 1
             y_one_hot.append(l)
         return [x_text, np.reshape(y_one_hot, (len(y_one_hot), number_of_classes))]
+    elif dataset_name == TW:
+        positive_examples = list(open("./data/twitter/training_pos.csv", "r").readlines())
+        positive_examples = [clean_str(s.strip()) for s in positive_examples]
+        negative_examples = list(open("./data/twitter/training_neg.csv", "r").readlines())
+        negative_examples = [clean_str(s.strip()) for s in negative_examples]
+        # Split by words
+        x_text = positive_examples + negative_examples
+
+        # Generate labels
+        positive_labels = [[0, 1] for _ in positive_examples]
+        negative_labels = [[1, 0] for _ in negative_examples]
+        y = np.concatenate([positive_labels, negative_labels], 0)
+
+        return [x_text, y]
+
     raise ValueError('Wrong Data Set Name')
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
