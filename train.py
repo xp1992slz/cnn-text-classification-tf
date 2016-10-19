@@ -28,7 +28,7 @@ tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 
 tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_float("cross_validation", 0.1, "Percentage of data for test (default: 0.1)")
-# tf.flags.DEFINE_integer("max_steps", 2000, "Stop training after max_steps (default: 2000)")
+tf.flags.DEFINE_float("improvement_threshold", 0.995, "Stop training after it doesn't improve (default: 0.995)")
 
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
@@ -208,20 +208,24 @@ with tf.Graph().as_default():
             if writer:
                 writer.add_summary(summaries, step)
 
+            return loss
         # Generate batches
         batches = data_helpers.batch_iter(
             list(zip(x_train, y_train)), FLAGS.batch_size, FLAGS.num_epochs)
         # Training loop. For each batch...
+        prev_loss = -1
         for batch in batches:
             x_batch, y_batch = zip(*batch)
             train_step(x_batch, y_batch)
             current_step = tf.train.global_step(sess, global_step)
             if current_step % FLAGS.evaluate_every == 0:
                 print("\nEvaluation:")
-                dev_step(x_dev, y_dev, writer=dev_summary_writer)
-                print("")
+                loss = dev_step(x_dev, y_dev, writer=dev_summary_writer)
+                if prev_loss > 0 and prev_loss * FLAGS.improvement_threshold < loss:
+                    print "Early Stop since loss is not decreasing"
+                    break
+                prev_loss = loss
+
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                 print("Saved model checkpoint to {}\n".format(path))
-            # if current_step > FLAGS.max_steps:
-            #    break
