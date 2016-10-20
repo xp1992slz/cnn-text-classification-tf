@@ -27,8 +27,8 @@ tf.flags.DEFINE_integer("batch_size", 50, "Batch Size (default: 50)")
 tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_float("cross_validation", 0.1, "Percentage of data for test (default: 0.1)")
-tf.flags.DEFINE_float("improvement_threshold", 0.995, "Stop training after it doesn't improve (default: 0.995)")
+tf.flags.DEFINE_float("cross_validation", 0.3, "Percentage of data for validation/test (default: 0.3)")
+tf.flags.DEFINE_float("generalization_loss_threshold", 5, "Stop training according to this threshold (default: 5)")
 
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
@@ -65,12 +65,20 @@ x_shuffled = x[shuffle_indices]
 y_shuffled = y[shuffle_indices]
 
 # Split train/test set
-# Use 10% of the training dataset as test
+# Use FLAGS.cross_validation % of the training dataset as validation/test
 n_test = int(len(x_shuffled) * FLAGS.cross_validation)
 x_train, x_dev = x_shuffled[:-n_test], x_shuffled[-n_test:]
 y_train, y_dev = y_shuffled[:-n_test], y_shuffled[-n_test:]
+
+# Split validation/test set (50%/50%)
+
+n_val = int(len(x_dev)/2)
+
+x_valid, x_dev = x_dev[:-n_val], x_dev[-n_val:]
+y_valid, y_dev = y_dev[:-n_val], y_dev[-n_val:]
+
 print("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
-print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
+print("Train/Valid/Dev split: {:d}/{:d}/{:d}".format(len(y_train), len(y_valid), len(y_dev)))
 print("Number of Classes: %s" % len(y_train[0]))
 
 # Training
@@ -127,6 +135,11 @@ with tf.Graph().as_default():
         dev_summary_op = tf.merge_summary([loss_summary, acc_summary])
         dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
         dev_summary_writer = tf.train.SummaryWriter(dev_summary_dir, sess.graph)
+
+        # Validation summaries
+        valid_summary_op = tf.merge_summary([loss_summary, acc_summary])
+        valid_summary_dir = os.path.join(out_dir, "summaries", "valid")
+        valid_summary_writer = tf.train.SummaryWriter(valid_summary_dir, sess.graph)
 
         # Checkpoint directory. Tensorflow assumes this directory already exists so we need to create it
         checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
@@ -191,6 +204,8 @@ with tf.Graph().as_default():
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
             train_summary_writer.add_summary(summaries, step)
 
+            return loss
+
         def dev_step(x_batch, y_batch, writer=None):
             """
             Evaluates model on a dev set
@@ -209,23 +224,53 @@ with tf.Graph().as_default():
                 writer.add_summary(summaries, step)
 
             return loss
+
+        def valid_step(x_batch, y_batch, writer=None):
+            """
+            Evaluates model on a validation set
+            """
+            return dev_step(x_batch, y_batch, writer)
+
         # Generate batches
+        num_batches_per_epoch = int(len(x_train)/FLAGS.batch_size) + 1
+
         batches = data_helpers.batch_iter(
             list(zip(x_train, y_train)), FLAGS.batch_size, FLAGS.num_epochs)
+
         # Training loop. For each batch...
-        prev_loss = -1
+
+        min_valid_loss = -1
+
         for batch in batches:
             x_batch, y_batch = zip(*batch)
-            train_step(x_batch, y_batch)
+
+            training_loss = train_step(x_batch, y_batch)
             current_step = tf.train.global_step(sess, global_step)
+
             if current_step % FLAGS.evaluate_every == 0:
                 print("\nEvaluation:")
-                loss = dev_step(x_dev, y_dev, writer=dev_summary_writer)
-                if prev_loss > 0 and prev_loss * FLAGS.improvement_threshold < loss:
-                    print "Early Stop since loss is not decreasing"
-                    break
-                prev_loss = loss
+                dev_loss = dev_step(x_dev, y_dev, writer=dev_summary_writer)
 
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                 print("Saved model checkpoint to {}\n".format(path))
+
+            # L. Prechelt, "Early stopping-but when?" in Neural Networks: Tricks of the TradeAnonymous Springer, 1998, pp. 55-69.
+            # Used Generalization Loss Method
+
+            if current_step % num_batches_per_epoch == 0:
+                print("\nValidation Set Evaluation:")
+                valid_loss = valid_step(x_valid, y_valid, writer=valid_summary_writer)
+                if min_valid_loss < 0 or min_valid_loss > valid_loss:
+                    min_valid_loss = valid_loss
+
+                generalization_loss = 100 * (valid_loss / min_valid_loss - 1)
+
+                if min_valid_loss >= 0:
+                    print("Generalization Loss is %s" % generalization_loss)
+
+                if min_valid_loss >= 0 and generalization_loss > FLAGS.generalization_loss_threshold:
+                    print("\nStop Training Here since generalization_loss exceeded threshold")
+                    print("\nFinal Evaluation:")
+                    dev_loss = dev_step(x_dev, y_dev, writer=dev_summary_writer)
+                    break
