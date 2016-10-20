@@ -73,20 +73,24 @@ def load_data_and_labels(dataset_name):
         neg_iter = pd.read_csv("./data/twitter/training_neg.csv", iterator=True, chunksize=10000, engine='python', sep='delimiter', header=None)
 
         #positive_examples = list(open("./data/twitter/training_pos.csv", "r").readlines())
-        positive_examples = pd.concat(pos_iter, ignore_index=True)
+        positive_examples = pd.concat(pos_iter, ignore_index=True).drop_duplicates()
+        print(positive_examples.describe())
+
         print "Finished loading the pos csv files"
         positive_examples = positive_examples[0].str.replace(r"[^A-Za-z0-9(),!?\'\`]", " ").str.replace(r"\'s", " \'s").str.replace(r"\'ve", " \'ve").str.replace(r"n\'t", " n\'t").str.replace(r"\'re", " \'re").str.replace(r"\'d", " \'d").str.replace(r"\'ll", " \'ll").str.replace(r",", " , ").str.replace(r"!", " ! ").str.replace(r"\(", " \( ").str.replace(r"\)", " \) ").str.replace(r"\?", " \? ").str.replace(r"\s{2,}", " ").str.strip().str.lower()
         print "Finished cleaning the pos csv files"
         print (positive_examples[:-10])
 
-        negative_examples = pd.concat(neg_iter, ignore_index=True)
+        negative_examples = pd.concat(neg_iter, ignore_index=True).drop_duplicates()
+        print(negative_examples.describe())
+
         print "Finished loading the neg csv files"
         negative_examples = negative_examples[0].str.replace(r"[^A-Za-z0-9(),!?\'\`]", " ").str.replace(r"\'s", " \'s").str.replace(r"\'ve", " \'ve").str.replace(r"n\'t", " n\'t").str.replace(r"\'re", " \'re").str.replace(r"\'d", " \'d").str.replace(r"\'ll", " \'ll").str.replace(r",", " , ").str.replace(r"!", " ! ").str.replace(r"\(", " \( ").str.replace(r"\)", " \) ").str.replace(r"\?", " \? ").str.replace(r"\s{2,}", " ").str.strip().str.lower()
         print "Finished cleaning the neg csv files"
         print (negative_examples[:-10])
 
         # Split by words
-        x_text = positive_examples + negative_examples
+        x_text = positive_examples.append(negative_examples)
         x_text = np.array(x_text)
 
         # Generate labels
