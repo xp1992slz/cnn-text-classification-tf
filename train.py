@@ -29,6 +29,7 @@ tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after 
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_float("cross_validation", 0.3, "Percentage of data for validation/test (default: 0.3)")
 tf.flags.DEFINE_float("generalization_loss_threshold", 5, "Stop training according to this threshold (default: 5)")
+tf.flags.DEFINE_float("min_vocab_frequency", 2, "Minimum Frequency of a vocabulary to be considered (default: 2)")
 
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
@@ -54,7 +55,7 @@ x_text, y = data_helpers.load_data_and_labels(FLAGS.dataset_name)
 
 # Build vocabulary
 max_document_length = max([len(x.split(" ")) for x in x_text])
-vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
+vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length, min_frequency=FLAGS.min_vocab_frequency)
 x = np.array(list(vocab_processor.fit_transform(x_text)))
 
 # Randomly shuffle data
