@@ -8,6 +8,8 @@ import datetime
 import data_helpers
 from text_cnn import TextCNN
 from tensorflow.contrib import learn
+from tqdm import tqdm
+
 
 # Parameters
 # ==================================================
@@ -34,6 +36,7 @@ tf.flags.DEFINE_float("min_vocab_frequency", 2, "Minimum Frequency of a vocabula
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
+tf.flags.DEFINE_integer("max_array_size", 1000, "Maximum Array Size (to prevent OOM)")
 
 #Data Parameters
 tf.flags.DEFINE_string("dataset_name", "MR", "Dataset Name")
@@ -202,6 +205,7 @@ with tf.Graph().as_default():
                 [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
+            print("\n Batch Size : %s" % len(x_batch))
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
             train_summary_writer.add_summary(summaries, step)
 
@@ -211,16 +215,35 @@ with tf.Graph().as_default():
             """
             Evaluates model on a dev set
             """
-            feed_dict = {
-              cnn.input_x: x_batch,
-              cnn.input_y: y_batch,
-              cnn.dropout_keep_prob: 1.0
-            }
-            step, summaries, loss, accuracy = sess.run(
-                [global_step, dev_summary_op, cnn.loss, cnn.accuracy],
-                feed_dict)
+            div_size = int(len(x_batch) / FLAGS.max_array_size)
+            print "Dividing into %s arrays" % div_size
+            x_batches = np.array_split(x_batch, div_size)
+            y_batches = np.array_split(y_batch, div_size)
+
+            total_loss = 0
+            total_accuracy = 0
+            for i in tqdm(range(len(x_batches))):
+                x = x_batches[i]
+                y = y_batches[i]
+
+                feed_dict = {
+                  cnn.input_x: x,
+                  cnn.input_y: y,
+                  cnn.dropout_keep_prob: 1.0
+                }
+                step, summaries, loss, accuracy = sess.run(
+                    [global_step, dev_summary_op, cnn.loss, cnn.accuracy],
+                    feed_dict)
+
+                total_loss += loss * len(x)
+                total_accuracy += accuracy * len(x)
+
+            total_loss /= len(x_batch)
+            total_accuracy /= len(x_batch)
+
             time_str = datetime.datetime.now().isoformat()
-            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+            print("\n Batch Size : %s" % len(x_batch))
+            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, total_loss, total_accuracy))
             if writer:
                 writer.add_summary(summaries, step)
 
