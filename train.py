@@ -205,7 +205,6 @@ with tf.Graph().as_default():
                 [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
-            print("\n Batch Size : %s" % len(x_batch))
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
             train_summary_writer.add_summary(summaries, step)
 
@@ -242,7 +241,6 @@ with tf.Graph().as_default():
             total_accuracy /= len(x_batch)
 
             time_str = datetime.datetime.now().isoformat()
-            print("\n Batch Size : %s" % len(x_batch))
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, total_loss, total_accuracy))
             if writer:
                 writer.add_summary(summaries, step)
