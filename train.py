@@ -294,5 +294,9 @@ with tf.Graph().as_default():
                 if min_valid_loss >= 0 and generalization_loss > FLAGS.generalization_loss_threshold:
                     print("\nStop Training Here since generalization_loss exceeded threshold")
                     print("\nFinal Evaluation:")
+
                     dev_loss = dev_step(x_dev, y_dev, writer=dev_summary_writer)
+
+                    path = saver.save(sess, checkpoint_prefix, global_step=current_step)
+                    print("Saved model checkpoint to {}\n".format(path))
                     break
